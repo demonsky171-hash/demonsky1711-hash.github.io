@@ -1,0 +1,1117 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Комплектация фотографий блоков</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+  :root{
+    --bg:#0f172a; --bg-soft:#1e293b; --card:#1e293b; --card-2:#243044;
+    --line:#334155; --text:#e2e8f0; --muted:#94a3b8;
+    --accent:#38bdf8; --accent-2:#0ea5e9; --danger:#ef4444; --ok:#22c55e;
+    --radius:16px; --shadow:0 10px 30px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:"Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif;
+    background:radial-gradient(1200px 600px at 80% -10%,#1e3a5f 0%,var(--bg) 55%);
+    color:var(--text); min-height:100vh; padding:24px 16px 64px;
+  }
+  h1,h2,h3{margin:0}
+  .wrap{max-width:1180px;margin:0 auto}
+  header.top{display:flex;flex-wrap:wrap;gap:16px;align-items:center;justify-content:space-between;margin-bottom:22px}
+  header.top .title h1{font-size:22px;letter-spacing:.2px}
+  header.top .title p{margin:4px 0 0;color:var(--muted);font-size:13px}
+  .counter-pill{display:inline-flex;align-items:center;gap:8px;background:var(--bg-soft);border:1px solid var(--line);padding:9px 16px;border-radius:999px;font-weight:600;font-size:14px;white-space:nowrap}
+  .counter-pill .dot{width:9px;height:9px;border-radius:50%;background:var(--ok)}
+  .counter-pill.full .dot{background:var(--danger)}
+  .counter-pill.full{border-color:rgba(239,68,68,.5)}
+  .layout{display:grid;grid-template-columns:380px 1fr;gap:22px;align-items:start}
+  @media (max-width:900px){.layout{grid-template-columns:1fr}}
+  .panel{background:linear-gradient(180deg,var(--card-2),var(--card));border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:20px}
+  .panel h2{font-size:16px;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+  .panel h2 .badge{font-size:11px;background:rgba(56,189,248,.15);color:var(--accent);padding:3px 8px;border-radius:999px;font-weight:600}
+  label.field{display:block;margin-bottom:14px}
+  label.field > span{display:block;font-size:13px;color:var(--muted);margin-bottom:6px;font-weight:600}
+  input[type="text"], select{
+    width:100%;padding:11px 13px;border-radius:11px;border:1px solid var(--line);
+    background:#0b1220;color:var(--text);font-size:15px;outline:none;transition:.15s;
+    font-family:inherit;
+  }
+  input[type="text"]:focus, select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(56,189,248,.18)}
+  input[type="text"].invalid{border-color:var(--danger);box-shadow:0 0 0 3px rgba(239,68,68,.15)}
+  .hint{font-size:12px;color:var(--muted);margin-top:5px}
+  .hint.err{color:#fca5a5}
+  .count-row{display:flex;align-items:center;gap:10px;margin-bottom:14px;background:#0b1220;border:1px solid var(--line);border-radius:11px;padding:10px 12px}
+  .count-row label{font-size:13px;color:var(--muted);font-weight:600;white-space:nowrap}
+  .count-row select{width:auto;padding:7px 10px;font-size:14px}
+  .count-row .hint{margin:0}
+
+  .photo-actions{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+  .photo-actions .btn, .photo-actions .btn-secondary{flex:1;min-width:150px}
+  .btn-cam{background:linear-gradient(135deg,#22c55e,#16a34a);color:#04202f}
+  .btn-cam:hover{background:linear-gradient(135deg,#4ade80,#22c55e)}
+  .btn-cam:disabled{opacity:.45;cursor:not-allowed;background:#475569;color:#cbd5e1}
+
+  .bulk-row{display:flex;align-items:center;gap:10px;margin-bottom:12px;background:rgba(56,189,248,.06);border:1px solid rgba(56,189,248,.22);border-radius:12px;padding:10px 12px}
+  .bulk-row .txt{font-size:12px;color:var(--muted);flex:1;line-height:1.4}
+  .bulk-row .txt b{color:var(--text);display:block;font-size:13px;margin-bottom:2px}
+  .btn-bulk{background:var(--accent-2);color:#04202f;font-weight:700;font-size:13px;padding:9px 14px;border-radius:10px;white-space:nowrap;flex:0 0 auto}
+  .btn-bulk:hover{background:var(--accent)}
+  .btn-bulk:disabled{opacity:.45;cursor:not-allowed;background:#475569;color:#cbd5e1}
+
+  .photos-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:10px;margin-bottom:16px}
+  .photo-slot{border:1px dashed var(--line);border-radius:12px;background:#0b1220;min-height:100px;position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:8px;text-align:center;transition:.15s;cursor:pointer;overflow:hidden}
+  .photo-slot:hover{border-color:var(--accent);background:#0e1729}
+  .photo-slot.missing{border-color:rgba(239,68,68,.55)}
+  .photo-slot .slot-label{font-size:11px;color:var(--muted);font-weight:600;margin-bottom:4px}
+  .photo-slot .slot-icon{font-size:18px;opacity:.7}
+  .photo-slot input[type="file"]{display:none}
+  .photo-slot img{width:100%;height:78px;object-fit:cover;border-radius:8px;display:block}
+  .photo-slot .thumb-wrap{position:relative;width:100%}
+  .photo-slot .del-photo{position:absolute;top:-6px;right:-6px;width:22px;height:22px;border-radius:50%;background:var(--danger);color:#fff;border:none;cursor:pointer;font-size:13px;line-height:1;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.4)}
+  .photo-slot .del-photo:hover{background:#dc2626}
+  .photo-slot.filled{border-style:solid;border-color:rgba(56,189,248,.45)}
+  button{font-family:inherit;cursor:pointer;border:none;transition:.15s}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:12px 18px;border-radius:12px;font-size:14px;font-weight:700;background:var(--accent-2);color:#04202f;width:100%}
+  .btn:hover{background:var(--accent)}
+  .btn:disabled{opacity:.45;cursor:not-allowed;background:#475569;color:#cbd5e1}
+  .btn-secondary{background:transparent;border:1px solid var(--line);color:var(--text);width:auto;padding:11px 16px;font-weight:600;font-size:13px}
+  .btn-secondary:hover{background:#243044;border-color:var(--accent)}
+  .btn-danger-soft{background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.35);color:#fca5a5;width:auto;padding:11px 16px;font-weight:600;font-size:13px}
+  .btn-danger-soft:hover{background:rgba(239,68,68,.2)}
+  .toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;align-items:center;justify-content:space-between}
+  .toolbar .left{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .export-bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:rgba(56,189,248,.06);border:1px solid rgba(56,189,248,.22);border-radius:12px;padding:10px 12px;margin-bottom:16px}
+  .export-bar .zip-label{font-size:12px;color:var(--muted);font-weight:700;white-space:nowrap}
+  .export-bar input{flex:1;min-width:180px;padding:9px 11px;font-size:13px}
+  .export-bar .btn{padding:9px 14px;border-radius:10px;font-size:13px;width:auto}
+  .folders-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px}
+  .folder-card{background:var(--bg-soft);border:1px solid var(--line);border-radius:14px;padding:12px;position:relative;transition:.15s;display:flex;flex-direction:column;gap:10px}
+  .folder-card:hover{border-color:rgba(56,189,248,.5);transform:translateY(-2px)}
+  .folder-head{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+  .folder-name{font-weight:800;font-size:14px;word-break:break-all;letter-spacing:.2px;display:flex;align-items:center;gap:7px;min-width:0}
+  .folder-name .ic{flex:0 0 auto;opacity:.75}
+  .folder-actions{display:flex;gap:6px;flex:0 0 auto}
+  .icon-btn{width:28px;height:28px;border-radius:8px;background:rgba(148,163,184,.12);color:var(--muted);display:flex;align-items:center;justify-content:center;font-size:14px}
+  .icon-btn:hover{background:rgba(56,189,248,.18);color:#bae6fd}
+  .icon-btn.danger:hover{background:rgba(239,68,68,.18);color:#fca5a5}
+  .mini-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+  .mini{position:relative;border-radius:8px;overflow:hidden;background:#0b1220;aspect-ratio:1/1}
+  .mini img{width:100%;height:100%;object-fit:cover;display:block;cursor:zoom-in;transition:.2s}
+  .mini img:hover{transform:scale(1.06)}
+  .mini .num{position:absolute;bottom:2px;left:2px;font-size:9px;font-weight:800;background:rgba(0,0,0,.65);color:#fff;padding:1px 4px;border-radius:4px}
+  .empty-state{text-align:center;color:var(--muted);padding:48px 20px;border:1px dashed var(--line);border-radius:14px;font-size:14px;line-height:1.7}
+  .empty-state .big{font-size:34px;display:block;margin-bottom:10px;opacity:.6}
+  .overlay{position:fixed;inset:0;background:rgba(2,6,23,.82);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;z-index:1000;padding:20px}
+  .overlay.show{display:flex}
+  .lightbox{background:var(--bg-soft);border:1px solid var(--line);border-radius:18px;max-width:960px;width:100%;max-height:92vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,.6)}
+  .lightbox-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--line);gap:12px}
+  .lightbox-head h3{font-size:16px}
+  .lightbox-head .sub{font-size:12px;color:var(--muted);margin-top:2px}
+  .lightbox-body{padding:16px;overflow:auto;display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+  @media (max-width:600px){.lightbox-body{grid-template-columns:1fr}}
+  .lightbox-body figure{margin:0;background:#0b1220;border-radius:12px;overflow:hidden;border:1px solid var(--line)}
+  .lightbox-body img{width:100%;display:block;max-height:44vh;object-fit:contain;background:#050b17}
+  .lightbox-body figcaption{font-size:12px;color:var(--muted);padding:8px 12px;font-weight:600}
+  .lightbox-foot{padding:12px 18px;border-top:1px solid var(--line);display:flex;justify-content:flex-end}
+  .close-x{width:34px;height:34px;border-radius:10px;background:rgba(148,163,184,.12);color:var(--text);display:flex;align-items:center;justify-content:center;font-size:18px}
+  .close-x:hover{background:rgba(239,68,68,.2);color:#fca5a5}
+
+  /* Камера */
+  .cam-modal{background:var(--bg-soft);border:1px solid var(--line);border-radius:18px;max-width:720px;width:100%;max-height:94vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,.6)}
+  .cam-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--line);gap:12px}
+  .cam-head h3{font-size:16px}
+  .cam-head .sub{font-size:12px;color:var(--muted);margin-top:2px}
+  .cam-stage{position:relative;background:#000;flex:1;min-height:240px;display:flex;align-items:center;justify-content:center;overflow:hidden}
+  .cam-stage video{width:100%;height:auto;max-height:60vh;display:block;object-fit:contain;background:#000}
+  .cam-stage .cam-placeholder{color:var(--muted);font-size:13px;padding:20px;text-align:center}
+  .cam-preview{width:100%;max-height:60vh;object-fit:contain;display:block}
+  .cam-counter{position:absolute;top:10px;left:10px;background:rgba(0,0,0,.65);color:#fff;font-size:12px;font-weight:700;padding:5px 10px;border-radius:999px}
+  .cam-badge{position:absolute;top:10px;right:10px;background:rgba(34,197,94,.85);color:#04202f;font-size:11px;font-weight:800;padding:5px 10px;border-radius:999px}
+  .cam-foot{padding:12px 18px;border-top:1px solid var(--line);display:flex;gap:10px;justify-content:space-between;flex-wrap:wrap}
+  .cam-foot .btn{width:auto;padding:10px 18px;flex:1;min-width:120px}
+  .cam-foot .btn-secondary{flex:1;min-width:120px}
+
+  .confirm-box{background:var(--bg-soft);border:1px solid var(--line);border-radius:16px;max-width:420px;width:100%;padding:22px;box-shadow:0 30px 80px rgba(0,0,0,.6)}
+  .confirm-box h3{font-size:16px;margin-bottom:8px}
+  .confirm-box p{color:var(--muted);font-size:13px;line-height:1.6;margin:0 0 18px}
+  .confirm-box p b{color:var(--text);word-break:break-all}
+  .confirm-actions{display:flex;gap:10px;justify-content:flex-end}
+  .confirm-actions .btn{width:auto;padding:10px 18px}
+  .btn-red{background:var(--danger);color:#fff}
+  .btn-red:hover{background:#dc2626}
+  #toasts{position:fixed;right:16px;bottom:16px;display:flex;flex-direction:column;gap:10px;z-index:2000;max-width:calc(100vw - 32px)}
+  .toast{background:var(--bg-soft);border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:12px;padding:12px 16px;min-width:260px;max-width:380px;box-shadow:var(--shadow);font-size:13px;line-height:1.45;color:var(--text);animation:slideIn .22s ease;display:flex;gap:10px;align-items:flex-start}
+  .toast.ok{border-left-color:var(--ok)}
+  .toast.err{border-left-color:var(--danger)}
+  .toast .ti{font-size:15px;line-height:1.2;flex:0 0 auto}
+  .toast.hide{animation:slideOut .25s ease forwards}
+  @keyframes slideIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+  @keyframes slideOut{to{opacity:0;transform:translateY(12px)}}
+  .saving-note{font-size:11px;color:var(--muted);margin-top:10px;text-align:center}
+  .divider{height:1px;background:var(--line);margin:16px 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div class="title">
+      <h1>📸 Комплектация фотографий блоков</h1>
+      <p>Серийный номер + фото → папка. Фото из галереи или сразу с камеры.</p>
+    </div>
+    <div class="counter-pill" id="counterPill">
+      <span class="dot"></span>
+      <span id="counterText">0 / 600 папок</span>
+    </div>
+  </header>
+
+  <div class="layout">
+
+    <!-- ЛЕВАЯ КОЛОНКА: ФОРМА -->
+    <section class="panel">
+      <h2>➕ Новый комплект <span class="badge" id="photoCountBadge">4 фото</span></h2>
+
+      <div class="count-row">
+        <label for="photoCountSelect">Сколько фото:</label>
+        <select id="photoCountSelect"></select>
+        <span class="hint">Все выбранные фото обязательны</span>
+      </div>
+
+      <label class="field">
+        <span>Серийный номер *</span>
+        <input type="text" id="serialInput" placeholder="(S)SN-2024-0001" autocomplete="off" maxlength="120">
+        <div class="hint" id="serialHint">Уникальный номер — станет именем папки. (S) можно стереть.</div>
+      </label>
+
+      <!-- Действия с фото: камера и выбор файлов -->
+      <div class="photo-actions">
+        <button type="button" class="btn btn-cam" id="camBtn">📷 Снять 4 фото</button>
+        <button type="button" class="btn-secondary" id="bulkBtn">🖼 Выбрать файлы</button>
+        <input type="file" id="bulkInput" accept="image/*" multiple style="display:none">
+      </div>
+
+      <div class="photos-grid" id="photosGrid"></div>
+
+      <button class="btn" id="addBtn">Добавить комплект</button>
+      <div class="hint" id="formHint" style="text-align:center;margin-top:10px">Все фото обязательны</div>
+      <div class="saving-note">Данные сохраняются в localStorage этого браузера</div>
+    </section>
+
+    <!-- ПРАВАЯ КОЛОНКА: ПАНЕЛЬ ПАПОК -->
+    <section class="panel">
+      <div class="toolbar">
+        <h2 style="margin:0">🗂 Скомплектованные папки</h2>
+        <div class="left">
+          <button class="btn-danger-soft" id="clearAllBtn">Очистить всё</button>
+        </div>
+      </div>
+      <div class="divider" style="margin-top:0"></div>
+
+      <div class="export-bar">
+        <span class="zip-label">📦 Имя ZIP-файла:</span>
+        <input type="text" id="zipNameInput" placeholder="Оставьте пустым — имя по дате" maxlength="80" autocomplete="off">
+        <button class="btn" id="exportBtn">⬇ Скачать ZIP</button>
+        <button class="btn-secondary" id="zipResetBtn" title="Сбросить имя">↺</button>
+      </div>
+
+      <div id="foldersArea"></div>
+    </section>
+
+  </div>
+</div>
+
+<!-- ЛАЙТБОКС -->
+<div class="overlay" id="lightboxOverlay">
+  <div class="lightbox">
+    <div class="lightbox-head">
+      <div>
+        <h3 id="lbTitle">—</h3>
+        <div class="sub" id="lbSub">фото</div>
+      </div>
+      <button class="close-x" id="lbClose">✕</button>
+    </div>
+    <div class="lightbox-body" id="lbBody"></div>
+    <div class="lightbox-foot">
+      <button class="btn-secondary" id="lbCloseBtn">Закрыть</button>
+    </div>
+  </div>
+</div>
+
+<!-- КАМЕРА -->
+<div class="overlay" id="camOverlay">
+  <div class="cam-modal">
+    <div class="cam-head">
+      <div>
+        <h3>📷 Съёмка фото</h3>
+        <div class="sub" id="camSub">Снимок 1 из 4</div>
+      </div>
+      <button class="close-x" id="camClose">✕</button>
+    </div>
+    <div class="cam-stage" id="camStage">
+      <div class="cam-counter" id="camCounter">1 / 4</div>
+      <div class="cam-badge" id="camBadge">Снято: 0</div>
+      <video id="camVideo" playsinline autoplay muted></video>
+      <div class="cam-placeholder" id="camPlaceholder" style="display:none">Камера недоступна. Разрешите доступ в браузере.</div>
+    </div>
+    <div class="cam-foot">
+      <button class="btn-secondary" id="camCloseBtn">Отмена</button>
+      <button class="btn-secondary" id="camRetake" style="display:none">↺ Переснять</button>
+      <button class="btn" id="camShot">📸 Сделать снимок</button>
+      <button class="btn" id="camDone" style="display:none">✅ Готово (4)</button>
+    </div>
+  </div>
+</div>
+
+<!-- ПОДТВЕРЖДЕНИЕ -->
+<div class="overlay" id="confirmOverlay">
+  <div class="confirm-box">
+    <h3 id="cfTitle">Удалить папку?</h3>
+    <p id="cfText">Действие нельзя отменить.</p>
+    <div class="confirm-actions">
+      <button class="btn-secondary" id="cfCancel">Отмена</button>
+      <button class="btn btn-red" id="cfOk">Удалить</button>
+    </div>
+  </div>
+</div>
+
+<div id="toasts"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  const MAX_FOLDERS = 600;
+  const MIN_PHOTOS = 1;
+  const MAX_PHOTOS = 20;
+  const DEFAULT_PHOTOS = 4;
+  const CAM_SHOTS = 4; // камера делает 4 снимка
+  const STORAGE_KEY = "photo_folders_v5";
+  const ZIPNAME_KEY = "photo_zipname_v1";
+  const COUNT_KEY = "photo_count_v1";
+  const MAX_SIZE_MB = 12;
+  const SERIAL_PREFIX = "(S)";
+
+  let folders = [];
+  let photoCount = DEFAULT_PHOTOS;
+  let pendingPhotos = [];
+  let confirmCallback = null;
+  let userRemovedPrefix = false;
+
+  // ---------- КАМЕРА: СОСТОЯНИЕ ----------
+  let camStream = null;
+  let camShots = [];        // собранные dataURL (до 4)
+  let camCurrent = 0;       // индекс текущего снимка
+  let camReviewing = false; // сейчас показываем превью, ждём "Сделать снимок" или "Переснять"
+
+  const $ = (id)=>document.getElementById(id);
+  const serialInput = $("serialInput");
+  const serialHint = $("serialHint");
+  const photoCountSelect = $("photoCountSelect");
+  const photoCountBadge = $("photoCountBadge");
+  const photosGrid = $("photosGrid");
+  const addBtn = $("addBtn");
+  const formHint = $("formHint");
+  const foldersArea = $("foldersArea");
+  const counterText = $("counterText");
+  const counterPill = $("counterPill");
+  const exportBtn = $("exportBtn");
+  const clearAllBtn = $("clearAllBtn");
+  const bulkBtn = $("bulkBtn");
+  const bulkInput = $("bulkInput");
+  const zipNameInput = $("zipNameInput");
+  const zipResetBtn = $("zipResetBtn");
+  const camBtn = $("camBtn");
+  const camOverlay = $("camOverlay");
+  const camVideo = $("camVideo");
+  const camStage = $("camStage");
+  const camCounter = $("camCounter");
+  const camBadge = $("camBadge");
+  const camSub = $("camSub");
+  const camPlaceholder = $("camPlaceholder");
+  const camShot = $("camShot");
+  const camDone = $("camDone");
+  const camRetake = $("camRetake");
+  const camClose = $("camClose");
+  const camCloseBtn = $("camCloseBtn");
+
+  // ---------- TOAST ----------
+  function toast(msg, type){
+    type = type || "info";
+    const wrap = $("toasts");
+    const el = document.createElement("div");
+    el.className = "toast " + (type==="ok"?"ok":type==="err"?"err":"");
+    const icon = type==="ok" ? "✅" : type==="err" ? "⚠️" : "ℹ️";
+    el.innerHTML = '<span class="ti">'+icon+'</span><span>'+escapeHtml(msg)+'</span>';
+    wrap.appendChild(el);
+    setTimeout(()=>{ el.classList.add("hide"); setTimeout(()=>el.remove(), 260); }, 3400);
+  }
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  }
+
+  // ---------- КОЛИЧЕСТВО ФОТО ----------
+  function initPhotoCountSelect(){
+    photoCountSelect.innerHTML = "";
+    for(let i=MIN_PHOTOS; i<=MAX_PHOTOS; i++){
+      const o = document.createElement("option");
+      o.value = i;
+      o.textContent = i;
+      if(i === DEFAULT_PHOTOS) o.selected = true;
+      photoCountSelect.appendChild(o);
+    }
+    try{
+      const saved = parseInt(localStorage.getItem(COUNT_KEY), 10);
+      if(saved >= MIN_PHOTOS && saved <= MAX_PHOTOS){
+        photoCountSelect.value = saved;
+      }
+    }catch(e){}
+    photoCount = parseInt(photoCountSelect.value, 10) || DEFAULT_PHOTOS;
+    photoCountBadge.textContent = photoCount + " фото";
+  }
+
+  photoCountSelect.addEventListener("change", ()=>{
+    const newCount = parseInt(photoCountSelect.value, 10);
+    if(!newCount || newCount < MIN_PHOTOS || newCount > MAX_PHOTOS) return;
+    if(newCount < pendingPhotos.length){
+      const removed = pendingPhotos.length - newCount;
+      pendingPhotos = pendingPhotos.slice(0, newCount);
+      if(removed > 0) toast("Убрано фото из формы: "+removed, "info");
+    }
+    while(pendingPhotos.length < newCount) pendingPhotos.push(null);
+    photoCount = newCount;
+    photoCountBadge.textContent = photoCount + " фото";
+    try{ localStorage.setItem(COUNT_KEY, String(photoCount)); }catch(e){}
+    buildPhotoSlots();
+    updateFormHint();
+  });
+
+  // ---------- ПРЕФИКС (S) ----------
+  function hasSPrefix(serial){ return /^\s*\(\s*s\s*\)/i.test(String(serial||"")); }
+  function stripSPrefix(serial){ return String(serial||"").replace(/^\s*\(\s*s\s*\)\s*/i,"").trim(); }
+  function withSPrefix(base){ const b=String(base||"").trim(); return b ? SERIAL_PREFIX+b : ""; }
+  function normalizeForCompare(serial){
+    return stripSPrefix(serial).toLowerCase().replace(/\s+/g," ");
+  }
+
+  serialInput.addEventListener("input", ()=>{
+    serialInput.classList.remove("invalid");
+    serialHint.className = "hint";
+    serialHint.textContent = "Уникальный номер — станет именем папки. (S) можно стереть.";
+    const val = serialInput.value;
+    if(!hasSPrefix(val)){ if(val.trim().length>0) userRemovedPrefix = true; }
+    else { userRemovedPrefix = false; }
+  });
+  serialInput.addEventListener("blur", ()=>{
+    const val = serialInput.value;
+    if(!val.trim()) return;
+    if(!hasSPrefix(val) && !userRemovedPrefix){
+      serialInput.value = withSPrefix(val);
+    }
+  });
+
+  // ---------- ИМЯ ZIP ----------
+  function loadZipName(){
+    try{
+      const v = localStorage.getItem(ZIPNAME_KEY);
+      if(v) zipNameInput.value = v;
+    }catch(e){}
+  }
+  function saveZipName(){
+    try{
+      const v = zipNameInput.value.trim();
+      if(v) localStorage.setItem(ZIPNAME_KEY, v);
+      else localStorage.removeItem(ZIPNAME_KEY);
+    }catch(e){}
+  }
+  zipNameInput.addEventListener("input", saveZipName);
+  zipResetBtn.addEventListener("click", ()=>{
+    zipNameInput.value = "";
+    saveZipName();
+    toast("Имя ZIP сброшено. Будет использовано имя по дате.", "ok");
+  });
+
+  function sanitizeFileName(name){
+    return String(name||"")
+      .replace(/[\\/:*?"<>|\u0000-\u001f]/g, "_")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 120);
+  }
+
+  // ---------- LOCALSTORAGE ----------
+  function saveState(){
+    try{
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(folders));
+    }catch(e){
+      if(!saveState._warned){
+        saveState._warned = true;
+        toast("Не удалось сохранить в localStorage (возможно, превышен лимит). Данные будут жить до перезагрузки.", "err");
+      }
+    }
+  }
+  function loadState(){
+    try{
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if(!raw) return;
+      const arr = JSON.parse(raw);
+      if(Array.isArray(arr)){
+        folders = arr.filter(f=>f && typeof f.serial==="string" && Array.isArray(f.photos) && f.photos.length>=1)
+                     .slice(0, MAX_FOLDERS);
+      }
+    }catch(e){ folders = []; }
+  }
+
+  // ---------- СЛОТЫ ФОТО ----------
+  function buildPhotoSlots(){
+    photosGrid.innerHTML = "";
+    if(pendingPhotos.length !== photoCount){
+      const old = pendingPhotos;
+      pendingPhotos = [];
+      for(let i=0;i<photoCount;i++) pendingPhotos.push(old[i] || null);
+    }
+    for(let i=0;i<photoCount;i++){
+      const slot = document.createElement("div");
+      slot.className = "photo-slot";
+      slot.dataset.index = i;
+      slot.innerHTML =
+        '<div class="slot-label">Фото '+(i+1)+'</div>' +
+        '<div class="slot-body"><span class="slot-icon">🖼️</span><div style="font-size:10px;color:var(--muted);margin-top:2px">Выбрать</div></div>' +
+        '<input type="file" accept="image/*" data-index="'+i+'">';
+      slot.addEventListener("click", (e)=>{
+        if(e.target.closest(".del-photo")) return;
+        slot.querySelector('input[type="file"]').click();
+      });
+      const input = slot.querySelector('input[type="file"]');
+      input.addEventListener("change", ()=> onFilePicked(i, input));
+      photosGrid.appendChild(slot);
+      renderPhotoSlot(i);
+    }
+    updateFormHint();
+  }
+
+  function onFilePicked(index, input){
+    const file = input.files && input.files[0];
+    if(!file) return;
+    if(!file.type || !file.type.startsWith("image/")){
+      toast("Можно загружать только изображения.", "err");
+      input.value = "";
+      return;
+    }
+    if(file.size > MAX_SIZE_MB*1024*1024){
+      toast("Файл больше "+MAX_SIZE_MB+" МБ — может не поместиться в localStorage.", "err");
+    }
+    const reader = new FileReader();
+    reader.onload = ()=>{
+      pendingPhotos[index] = { dataURL: reader.result, name: file.name, type: file.type };
+      renderPhotoSlot(index);
+    };
+    reader.onerror = ()=> toast("Не удалось прочитать файл.", "err");
+    reader.readAsDataURL(file);
+  }
+
+  function renderPhotoSlot(index){
+    const slot = photosGrid.querySelector('.photo-slot[data-index="'+index+'"]');
+    if(!slot) return;
+    const p = pendingPhotos[index];
+    const body = slot.querySelector(".slot-body");
+    if(p){
+      slot.classList.add("filled");
+      slot.classList.remove("missing");
+      body.innerHTML =
+        '<div class="thumb-wrap">' +
+          '<img src="'+p.dataURL+'" alt="Фото '+(index+1)+'">' +
+          '<button class="del-photo" title="Удалить фото" type="button">✕</button>' +
+        '</div>';
+      body.querySelector(".del-photo").addEventListener("click", (e)=>{
+        e.stopPropagation();
+        pendingPhotos[index] = null;
+        const inp = slot.querySelector('input[type="file"]');
+        if(inp) inp.value = "";
+        renderPhotoSlot(index);
+      });
+    }else{
+      slot.classList.remove("filled");
+      body.innerHTML = '<span class="slot-icon">🖼️</span><div style="font-size:10px;color:var(--muted);margin-top:2px">Выбрать</div>';
+    }
+    updateFormHint();
+  }
+
+  function markMissing(index, missing){
+    const slot = photosGrid.querySelector('.photo-slot[data-index="'+index+'"]');
+    if(!slot) return;
+    slot.classList.toggle("missing", !!missing);
+  }
+
+  function updateFormHint(){
+    const filled = pendingPhotos.filter(Boolean).length;
+    if(filled < photoCount){
+      formHint.textContent = "Заполнено "+filled+" из "+photoCount+" фото";
+      formHint.style.color = "#fca5a5";
+    }else{
+      formHint.textContent = "Все "+photoCount+" фото обязательны";
+      formHint.style.color = "";
+    }
+  }
+
+  // ---------- МНОЖЕСТВЕННАЯ ЗАГРУЗКА ИЗ ФАЙЛОВ ----------
+  bulkBtn.addEventListener("click", ()=> bulkInput.click());
+  bulkInput.addEventListener("change", ()=>{
+    const files = Array.from(bulkInput.files || []);
+    if(files.length === 0) return;
+    if(files.length > photoCount){
+      toast("Выбрано "+files.length+" файлов. Будут взяты первые "+photoCount+" (по имени).", "err");
+    }
+    files.sort((a,b)=> a.name.localeCompare(b.name, undefined, {numeric:true, sensitivity:"base"}));
+    const toLoad = files.slice(0, photoCount);
+    const freeSlots = [];
+    pendingPhotos.forEach((p,i)=>{ if(!p) freeSlots.push(i); });
+    if(freeSlots.length === 0){
+      toast("Все "+photoCount+" слотов уже заполнены. Удалите фото в слотах, чтобы заменить.", "err");
+      bulkInput.value = "";
+      return;
+    }
+    let assigned = 0, skipped = 0;
+    toLoad.forEach((file)=>{
+      if(assigned >= freeSlots.length){ skipped++; return; }
+      if(!file.type || !file.type.startsWith("image/")){ skipped++; return; }
+      if(file.size > MAX_SIZE_MB*1024*1024){
+        toast("Файл «"+file.name+"» больше "+MAX_SIZE_MB+" МБ — может не поместиться в localStorage.", "err");
+      }
+      const slotIndex = freeSlots[assigned];
+      assigned++;
+      const reader = new FileReader();
+      reader.onload = ()=>{
+        pendingPhotos[slotIndex] = { dataURL: reader.result, name: file.name, type: file.type };
+        renderPhotoSlot(slotIndex);
+      };
+      reader.onerror = ()=> toast("Не удалось прочитать файл «"+file.name+"».", "err");
+      reader.readAsDataURL(file);
+    });
+    if(skipped > 0){
+      toast("Не загружено файлов: "+skipped+" (нет свободных слотов или не картинка).", "err");
+    } else if(assigned > 0){
+      toast("Загружается фото: "+assigned+" из "+toLoad.length+".", "ok");
+    }
+    bulkInput.value = "";
+  });
+
+  // ---------- КАМЕРА ----------
+  function camReset(){
+    camShots = [];
+    camCurrent = 0;
+    camReviewing = false;
+    camCounter.textContent = "1 / " + CAM_SHOTS;
+    camBadge.textContent = "Снято: 0";
+    camSub.textContent = "Снимок 1 из " + CAM_SHOTS;
+    camShot.style.display = "";
+    camDone.style.display = "none";
+    camRetake.style.display = "none";
+    camShot.textContent = "📸 Сделать снимок";
+    // убрать превью, вернуть видео
+    const old = camStage.querySelector(".cam-preview");
+    if(old) old.remove();
+    camVideo.style.display = "";
+    camPlaceholder.style.display = "none";
+  }
+
+  async function camStart(){
+    camReset();
+    camOverlay.classList.add("show");
+    // Попробуем заднюю камеру, потом любую
+    try{
+      camStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+        audio: false
+      });
+      camVideo.srcObject = camStream;
+      camVideo.style.display = "";
+      camPlaceholder.style.display = "none";
+      await camVideo.play().catch(()=>{});
+    }catch(err1){
+      try{
+        camStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        camVideo.srcObject = camStream;
+        camVideo.style.display = "";
+        camPlaceholder.style.display = "none";
+        await camVideo.play().catch(()=>{});
+      }catch(err2){
+        camVideo.style.display = "none";
+        camPlaceholder.style.display = "";
+        camPlaceholder.textContent = "Камера недоступна: " + (err2 && err2.message ? err2.message : "нет доступа") + ". Разрешите доступ к камере в настройках браузера.";
+        toast("Не удалось открыть камеру: " + (err2 && err2.message ? err2.message : "нет доступа"), "err");
+      }
+    }
+  }
+
+  function camStop(){
+    if(camStream){
+      camStream.getTracks().forEach(t=>t.stop());
+      camStream = null;
+    }
+    camVideo.srcObject = null;
+    camOverlay.classList.remove("show");
+  }
+
+  function camTakeShot(){
+    if(!camVideo.videoWidth || !camVideo.videoHeight){
+      toast("Камера ещё не готова. Подождите пару секунд.", "err");
+      return;
+    }
+    // Делаем снимок с максимальным разрешением видео
+    const w = camVideo.videoWidth;
+    const h = camVideo.videoHeight;
+    const canvas = document.createElement("canvas");
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(camVideo, 0, 0, w, h);
+    // JPEG для компактности
+    const dataURL = canvas.toDataURL("image/jpeg", 0.9);
+    camShots[camCurrent] = dataURL;
+    showCamPreview(dataURL, camCurrent);
+  }
+
+  function showCamPreview(dataURL, index){
+    // Показать превью вместо видео
+    camVideo.style.display = "none";
+    let prev = camStage.querySelector(".cam-preview");
+    if(!prev){
+      prev = document.createElement("img");
+      prev.className = "cam-preview";
+      camStage.appendChild(prev);
+    }
+    prev.src = dataURL;
+    prev.style.display = "block";
+    camReviewing = true;
+    // Обновить состояние кнопок
+    const shotNum = index + 1;
+    camCounter.textContent = shotNum + " / " + CAM_SHOTS;
+    camSub.textContent = "Снимок " + shotNum + " из " + CAM_SHOTS;
+    camBadge.textContent = "Снято: " + camShots.filter(Boolean).length;
+    // Кнопки
+    camShot.style.display = "";
+    camShot.textContent = "✅ Подтвердить";
+    camRetake.style.display = "";
+    // Если это последний (4-й) снимок — показать "Готово"
+    if(camShots.filter(Boolean).length >= CAM_SHOTS){
+      camDone.style.display = "";
+      camDone.textContent = "✅ Готово (" + CAM_SHOTS + ")";
+    }else{
+      camDone.style.display = "none";
+    }
+  }
+
+  function camConfirmShot(){
+    // Подтверждаем текущий снимок и переходим к следующему
+    if(!camShots[camCurrent]){
+      toast("Сначала сделайте снимок.", "err");
+      return;
+    }
+    // Если все 4 сняты — завершаем
+    if(camShots.filter(Boolean).length >= CAM_SHOTS){
+      camFinish();
+      return;
+    }
+    // Иначе ищем следующий свободный индекс
+    let next = camCurrent + 1;
+    while(next < CAM_SHOTS && camShots[next]) next++;
+    if(next >= CAM_SHOTS){
+      camFinish();
+      return;
+    }
+    camCurrent = next;
+    camReviewing = false;
+    // Вернуть видео
+    const prev = camStage.querySelector(".cam-preview");
+    if(prev) prev.remove();
+    camVideo.style.display = "";
+    camCounter.textContent = (next+1) + " / " + CAM_SHOTS;
+    camSub.textContent = "Снимок " + (next+1) + " из " + CAM_SHOTS;
+    camBadge.textContent = "Снято: " + camShots.filter(Boolean).length;
+    camShot.textContent = "📸 Сделать снимок";
+    camRetake.style.display = "none";
+    camDone.style.display = "none";
+  }
+
+  function camRetakeShot(){
+    // Переснять текущий снимок
+    camShots[camCurrent] = null;
+    camReviewing = false;
+    const prev = camStage.querySelector(".cam-preview");
+    if(prev) prev.remove();
+    camVideo.style.display = "";
+    camBadge.textContent = "Снято: " + camShots.filter(Boolean).length;
+    camShot.textContent = "📸 Сделать снимок";
+    camRetake.style.display = "none";
+    camDone.style.display = "none";
+  }
+
+  function camFinish(){
+    // Переносим снимки в слоты формы (в первые свободные или поверх)
+    const shots = camShots.filter(Boolean);
+    if(shots.length === 0){
+      toast("Нет снимков для сохранения.", "err");
+      camStop();
+      return;
+    }
+    // Заполняем первые N свободных слотов
+    const freeSlots = [];
+    pendingPhotos.forEach((p,i)=>{ if(!p) freeSlots.push(i); });
+    let used = 0;
+    for(let i=0;i<shots.length && used<freeSlots.length;i++){
+      const idx = freeSlots[used];
+      pendingPhotos[idx] = { dataURL: shots[i], name: "camera_" + (i+1) + ".jpg", type: "image/jpeg" };
+      used++;
+    }
+    // Если свободных слотов меньше, чем снимков — предупредим
+    if(used < shots.length){
+      toast("Свободных слотов меньше: сохранено " + used + " из " + shots.length + ".", "err");
+    } else {
+      toast("Сохранено " + used + " снимков с камеры.", "ok");
+    }
+    // Перерисовать форму
+    const start = freeSlots[0];
+    if(start != null){
+      for(let i=0;i<photoCount;i++) renderPhotoSlot(i);
+    }
+    camStop();
+  }
+
+  camBtn.addEventListener("click", camStart);
+  camClose.addEventListener("click", ()=>{ camStop(); });
+  camCloseBtn.addEventListener("click", ()=>{ camStop(); });
+  camShot.addEventListener("click", ()=>{
+    if(camReviewing){
+      camConfirmShot();
+    }else{
+      camTakeShot();
+    }
+  });
+  camRetake.addEventListener("click", camRetakeShot);
+  camDone.addEventListener("click", camFinish);
+  camOverlay.addEventListener("click", (e)=>{
+    if(e.target === camOverlay) camStop();
+  });
+
+  // Пробел = сделать снимок (если камера открыта и не идёт ввод текста)
+  document.addEventListener("keydown", (e)=>{
+    if(camOverlay.classList.contains("show") && e.code === "Space"){
+      const tag = (document.activeElement && document.activeElement.tagName) || "";
+      if(tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      e.preventDefault();
+      if(camReviewing) camConfirmShot();
+      else camTakeShot();
+    }
+  });
+
+  // ---------- ВАЛИДАЦИЯ ----------
+  function isSerialDuplicate(serial){
+    const s = normalizeForCompare(serial);
+    if(!s) return false;
+    return folders.some(f => normalizeForCompare(f.serial) === s);
+  }
+
+  addBtn.addEventListener("click", ()=>{
+    if(folders.length >= MAX_FOLDERS){
+      toast("Достигнут лимит: "+MAX_FOLDERS+" папок. Добавление заблокировано.", "err");
+      return;
+    }
+    let val = serialInput.value.trim();
+    if(val && !hasSPrefix(val) && !userRemovedPrefix){
+      val = withSPrefix(val);
+      serialInput.value = val;
+    }
+    const base = stripSPrefix(val);
+    if(!base){
+      serialInput.classList.add("invalid");
+      serialHint.className = "hint err";
+      serialHint.textContent = "Введите серийный номер.";
+      toast("Введите серийный номер.", "err");
+      serialInput.focus();
+      return;
+    }
+    const serial = hasSPrefix(val) ? withSPrefix(base) : base;
+    if(isSerialDuplicate(serial)){
+      serialInput.classList.add("invalid");
+      serialHint.className = "hint err";
+      serialHint.textContent = "Папка с таким серийным номером уже существует.";
+      toast("Серийный номер «"+serial+"» уже используется.", "err");
+      serialInput.focus();
+      return;
+    }
+    let allOk = true;
+    pendingPhotos.forEach((p,i)=>{
+      const miss = !p;
+      markMissing(i, miss);
+      if(miss) allOk = false;
+    });
+    if(!allOk){
+      updateFormHint();
+      toast("Нужны все "+photoCount+" фотографий.", "err");
+      return;
+    }
+    folders.push({
+      serial: serial,
+      photos: pendingPhotos.map(p => ({ dataURL: p.dataURL, type: p.type })),
+      createdAt: Date.now()
+    });
+    saveState();
+    serialInput.value = "";
+    serialInput.classList.remove("invalid");
+    serialHint.className = "hint";
+    serialHint.textContent = "Уникальный номер — станет именем папки. (S) можно стереть.";
+    pendingPhotos = [];
+    for(let i=0;i<photoCount;i++) pendingPhotos.push(null);
+    userRemovedPrefix = false;
+    buildPhotoSlots();
+    renderFolders();
+    updateCounter();
+    toast("Комплект «"+serial+"» добавлен ("+photoCount+" фото).", "ok");
+  });
+
+  // ---------- ОТРИСОВКА ПАПОК ----------
+  function renderFolders(){
+    if(folders.length === 0){
+      foldersArea.innerHTML = '<div class="empty-state"><span class="big">📂</span>Пока нет ни одной скомплектованной папки.<br>Добавьте первый комплект через форму слева.</div>';
+      return;
+    }
+    const grid = document.createElement("div");
+    grid.className = "folders-grid";
+    folders.forEach((f, idx)=>{
+      const card = document.createElement("div");
+      card.className = "folder-card";
+      const head = document.createElement("div");
+      head.className = "folder-head";
+      head.innerHTML = '<div class="folder-name"><span class="ic">📁</span><span>'+escapeHtml(f.serial)+'</span></div>';
+      const actions = document.createElement("div");
+      actions.className = "folder-actions";
+      const openBtn = document.createElement("button");
+      openBtn.className = "icon-btn";
+      openBtn.title = "Открыть (посмотреть фото)";
+      openBtn.textContent = "👁";
+      openBtn.style.color = "var(--accent)";
+      openBtn.addEventListener("click", ()=> openLightbox(idx));
+      const delBtn = document.createElement("button");
+      delBtn.className = "icon-btn danger";
+      delBtn.title = "Удалить папку";
+      delBtn.textContent = "🗑";
+      delBtn.addEventListener("click", ()=> askDelete(idx));
+      actions.appendChild(openBtn);
+      actions.appendChild(delBtn);
+      head.appendChild(actions);
+      card.appendChild(head);
+      const mini = document.createElement("div");
+      mini.className = "mini-grid";
+      f.photos.forEach((ph, pi)=>{
+        const m = document.createElement("div");
+        m.className = "mini";
+        m.innerHTML =
+          '<img src="'+ph.dataURL+'" alt="'+escapeHtml(f.serial)+' — фото '+(pi+1)+'" loading="lazy">' +
+          '<span class="num">'+(pi+1)+'</span>';
+        m.querySelector("img").addEventListener("click", ()=> openLightbox(idx, pi));
+        mini.appendChild(m);
+      });
+      card.appendChild(mini);
+      grid.appendChild(card);
+    });
+    foldersArea.innerHTML = "";
+    foldersArea.appendChild(grid);
+  }
+
+  function updateCounter(){
+    const n = folders.length;
+    counterText.textContent = n + " / " + MAX_FOLDERS + " папок";
+    counterPill.classList.toggle("full", n >= MAX_FOLDERS);
+    const full = n >= MAX_FOLDERS;
+    addBtn.disabled = full;
+    addBtn.textContent = full ? "Достигнут лимит " + MAX_FOLDERS + " папок" : "Добавить комплект";
+    if(full){
+      formHint.textContent = "Лимит " + MAX_FOLDERS + " папок достигнут — добавление заблокировано.";
+      formHint.style.color = "#fca5a5";
+    }
+    exportBtn.disabled = n === 0;
+    exportBtn.style.opacity = n === 0 ? ".5" : "1";
+    clearAllBtn.disabled = n === 0;
+    clearAllBtn.style.opacity = n === 0 ? ".5" : "1";
+  }
+
+  // ---------- ЛАЙТБОКС ----------
+  function openLightbox(folderIdx, focusPhoto){
+    const f = folders[folderIdx];
+    if(!f) return;
+    $("lbTitle").textContent = "📁 " + f.serial;
+    $("lbSub").textContent = f.photos.length + " фото";
+    const body = $("lbBody");
+    body.innerHTML = "";
+    f.photos.forEach((ph, i)=>{
+      const fig = document.createElement("figure");
+      fig.innerHTML =
+        '<img src="'+ph.dataURL+'" alt="'+escapeHtml(f.serial)+' — фото '+(i+1)+'">' +
+        '<figcaption>Фото '+(i+1)+'</figcaption>';
+      body.appendChild(fig);
+    });
+    $("lightboxOverlay").classList.add("show");
+    if(typeof focusPhoto === "number"){
+      const imgs = body.querySelectorAll("figure");
+      if(imgs[focusPhoto]) imgs[focusPhoto].scrollIntoView({block:"center"});
+    }
+  }
+  function closeLightbox(){ $("lightboxOverlay").classList.remove("show"); }
+  $("lbClose").addEventListener("click", closeLightbox);
+  $("lbCloseBtn").addEventListener("click", closeLightbox);
+  $("lightboxOverlay").addEventListener("click", (e)=>{ if(e.target === $("lightboxOverlay")) closeLightbox(); });
+
+  // ---------- ПОДТВЕРЖДЕНИЕ ----------
+  function askDelete(idx){
+    const f = folders[idx];
+    if(!f) return;
+    $("cfTitle").textContent = "Удалить папку?";
+    $("cfText").innerHTML = "Папка <b>"+escapeHtml(f.serial)+"</b> и все её фото будут удалены. Это действие нельзя отменить.";
+    confirmCallback = ()=>{
+      folders.splice(idx, 1);
+      saveState();
+      renderFolders();
+      updateCounter();
+      toast("Папка «"+f.serial+"» удалена.", "ok");
+    };
+    $("confirmOverlay").classList.add("show");
+  }
+  function askClearAll(){
+    if(folders.length === 0) return;
+    $("cfTitle").textContent = "Очистить всё?";
+    $("cfText").innerHTML = "Будут удалены <b>все "+folders.length+" папок</b> и их фото. Это действие нельзя отменить.";
+    confirmCallback = ()=>{
+      folders = [];
+      saveState();
+      renderFolders();
+      updateCounter();
+      toast("Все папки удалены.", "ok");
+    };
+    $("confirmOverlay").classList.add("show");
+  }
+  function closeConfirm(){
+    $("confirmOverlay").classList.remove("show");
+    confirmCallback = null;
+  }
+  $("cfCancel").addEventListener("click", closeConfirm);
+  $("cfOk").addEventListener("click", ()=>{
+    const cb = confirmCallback;
+    closeConfirm();
+    if(cb) cb();
+  });
+  $("confirmOverlay").addEventListener("click", (e)=>{ if(e.target === $("confirmOverlay")) closeConfirm(); });
+  clearAllBtn.addEventListener("click", askClearAll);
+
+  document.addEventListener("keydown", (e)=>{
+    if(e.key === "Escape"){
+      if(camOverlay.classList.contains("show")) camStop();
+      if($("lightboxOverlay").classList.contains("show")) closeLightbox();
+      if($("confirmOverlay").classList.contains("show")) closeConfirm();
+    }
+  });
+
+  // ---------- ЭКСПОРТ ZIP ----------
+  function dataURLtoBlob(dataURL){
+    const parts = dataURL.split(",");
+    const meta = parts[0];
+    const b64 = parts[1];
+    const mimeMatch = meta.match(/data:([^;]+);base64/);
+    const mime = mimeMatch ? mimeMatch[1] : "image/jpeg";
+    const bin = atob(b64);
+    const len = bin.length;
+    const arr = new Uint8Array(len);
+    for(let i=0;i<len;i++) arr[i] = bin.charCodeAt(i);
+    return new Blob([arr], {type: mime});
+  }
+  function extFromMime(mime){
+    if(!mime) return "jpg";
+    if(mime.includes("png")) return "png";
+    if(mime.includes("jpeg") || mime.includes("jpg")) return "jpg";
+    if(mime.includes("webp")) return "webp";
+    if(mime.includes("gif")) return "gif";
+    if(mime.includes("bmp")) return "bmp";
+    if(mime.includes("svg")) return "svg";
+    if(mime.includes("avif")) return "avif";
+    return "jpg";
+  }
+  function safeFolderName(serial){
+    return serial.replace(/[\\/:*?"<>|\u0000-\u001f]/g, "_").trim() || "без_названия";
+  }
+
+  exportBtn.addEventListener("click", async ()=>{
+    if(folders.length === 0){
+      toast("Нет папок для экспорта.", "err");
+      return;
+    }
+    if(typeof JSZip === "undefined"){
+      toast("Библиотека JSZip не загрузилась. Проверьте интернет и обновите страницу.", "err");
+      return;
+    }
+    exportBtn.disabled = true;
+    const origText = exportBtn.textContent;
+    exportBtn.textContent = "⏳ Формирую ZIP...";
+    try{
+      const zip = new JSZip();
+      folders.forEach((f)=>{
+        const safe = safeFolderName(f.serial);
+        const folderZip = zip.folder(safe);
+        f.photos.forEach((ph, i)=>{
+          const ext = extFromMime(ph.type);
+          const blob = dataURLtoBlob(ph.dataURL);
+          folderZip.file(safe + "_" + (i+1) + "." + ext, blob);
+        });
+      });
+      const content = await zip.generateAsync({
+        type: "blob",
+        compression: "DEFLATE",
+        compressionOptions: { level: 6 }
+      });
+      const url = URL.createObjectURL(content);
+      const a = document.createElement("a");
+      let baseName = zipNameInput.value.trim();
+      if(baseName){
+        baseName = sanitizeFileName(baseName);
+        if(!/\.zip$/i.test(baseName)) baseName += ".zip";
+      }else{
+        const now = new Date();
+        const pad = (n)=>String(n).padStart(2,"0");
+        const stamp = now.getFullYear() + pad(now.getMonth()+1) + pad(now.getDate()) + "_" +
+                      pad(now.getHours()) + pad(now.getMinutes());
+        baseName = "folders_" + stamp + ".zip";
+      }
+      a.href = url;
+      a.download = baseName;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(()=>URL.revokeObjectURL(url), 8000);
+      toast("ZIP сформирован: "+folders.length+" папок → "+baseName, "ok");
+    }catch(err){
+      console.error(err);
+      toast("Ошибка при создании ZIP: " + (err && err.message ? err.message : "неизвестно"), "err");
+    }finally{
+      exportBtn.disabled = folders.length === 0;
+      exportBtn.textContent = origText;
+    }
+  });
+
+  // ---------- СТАРТ ----------
+  initPhotoCountSelect();
+  pendingPhotos = [];
+  for(let i=0;i<photoCount;i++) pendingPhotos.push(null);
+  loadState();
+  loadZipName();
+  buildPhotoSlots();
+  renderFolders();
+  updateCounter();
+  if(folders.length > 0){
+    toast("Загружено "+folders.length+" папок из сохранения.", "ok");
+  }
+})();
+</script>
+</body>
+</html>
